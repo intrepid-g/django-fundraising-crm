@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from donors.models import Donor
 from donations.models import Campaign
 
@@ -108,7 +109,23 @@ class Event(models.Model):
     
     def __str__(self):
         return f"{self.name} ({self.start_date.strftime('%Y-%m-%d')})"
-    
+
+    def clean(self):
+        """Validate event data."""
+        super().clean()
+
+        # Validate end date is after start date
+        if self.end_date and self.start_date and self.end_date < self.start_date:
+            raise ValidationError("End date must be after start date.")
+
+        # Validate capacity is not zero (if set)
+        if self.capacity is not None and self.capacity == 0:
+            raise ValidationError("Capacity cannot be zero.")
+
+    def save(self, *args, **kwargs):
+        self.clean()
+        super().save(*args, **kwargs)
+
     def update_financials(self):
         """Update event financial statistics."""
         from django.db.models import Sum
@@ -124,19 +141,23 @@ class Event(models.Model):
 
 class EventRegistration(models.Model):
     """Event registration/RSVP for donors."""
-    
+
+    PENDING = 'pending'
     REGISTERED = 'registered'
     CONFIRMED = 'confirmed'
     ATTENDED = 'attended'
     CANCELLED = 'cancelled'
     NO_SHOW = 'no_show'
-    
+    WAITLISTED = 'waitlisted'
+
     STATUS_CHOICES = [
+        (PENDING, 'Pending'),
         (REGISTERED, 'Registered'),
         (CONFIRMED, 'Confirmed'),
         (ATTENDED, 'Attended'),
         (CANCELLED, 'Cancelled'),
         (NO_SHOW, 'No Show'),
+        (WAITLISTED, 'Waitlisted'),
     ]
     
     # Core relationship
@@ -157,13 +178,20 @@ class EventRegistration(models.Model):
     # Check-in
     checked_in_at = models.DateTimeField(null=True, blank=True)
     checked_in_by = models.ForeignKey(
-        User, 
-        on_delete=models.SET_NULL, 
-        null=True, 
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
         related_name='event_checkins'
     )
-    
+
+    # Cancellation
+    cancellation_date = models.DateField(null=True, blank=True)
+    cancellation_reason = models.TextField(blank=True)
+
+    # Waitlist
+    waitlist_position = models.PositiveIntegerField(null=True, blank=True)
+
     # Timestamps
     registered_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -194,13 +222,13 @@ class EventRegistration(models.Model):
 
 class EventSponsor(models.Model):
     """Event sponsor."""
-    
+
     PLATINUM = 'platinum'
     GOLD = 'gold'
     SILVER = 'silver'
     BRONZE = 'bronze'
     IN_KIND = 'in_kind'
-    
+
     SPONSOR_LEVELS = [
         (PLATINUM, 'Platinum'),
         (GOLD, 'Gold'),
@@ -208,37 +236,71 @@ class EventSponsor(models.Model):
         (BRONZE, 'Bronze'),
         (IN_KIND, 'In-Kind'),
     ]
-    
+
     PENDING = 'pending'
     CONFIRMED = 'confirmed'
     PAID = 'paid'
-    
+
     STATUS_CHOICES = [
         (PENDING, 'Pending'),
         (CONFIRMED, 'Confirmed'),
         (PAID, 'Paid'),
     ]
-    
+
     # Core relationship
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='sponsors')
     sponsor_name = models.CharField(max_length=255)
     sponsor_contact = models.ForeignKey(
-        Donor, 
-        on_delete=models.SET_NULL, 
-        null=True, 
+        Donor,
+        on_delete=models.SET_NULL,
+        null=True,
         blank=True,
         related_name='event_sponsorships'
     )
-    
+
     # Sponsorship details
     level = models.CharField(max_length=20, choices=SPONSOR_LEVELS, default=BRONZE)
     amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_pledged = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=PENDING)
-    
+
     # Benefits
     benefits_description = models.TextField(blank=True)
     logo_url = models.URLField(blank=True)
     website_url = models.URLField(blank=True)
+
+    # Legacy/alias fields for test compatibility
+    @property
+    def donor(self):
+        return self.sponsor_contact
+
+    @donor.setter
+    def donor(self, value):
+        self.sponsor_contact = value
+
+    @property
+    def sponsor_level(self):
+        return self.level
+
+    @sponsor_level.setter
+    def sponsor_level(self, value):
+        self.level = value
+
+    @property
+    def benefits_provided(self):
+        """Parse benefits_description as a list."""
+        if not self.benefits_description:
+            return []
+        return [b.strip() for b in self.benefits_description.split(',') if b.strip()]
+
+    @benefits_provided.setter
+    def benefits_provided(self, value):
+        """Store list as comma-separated string."""
+        if isinstance(value, list):
+            self.benefits_description = ', '.join(str(v) for v in value)
+        else:
+            self.benefits_description = str(value) if value else ''
     
     # Notes
     notes = models.TextField(blank=True)
@@ -261,24 +323,28 @@ class EventSponsor(models.Model):
 
 class EventTask(models.Model):
     """Task/checklist item for event planning."""
-    
+
+    PENDING = 'pending'
     TODO = 'todo'
     IN_PROGRESS = 'in_progress'
     COMPLETED = 'completed'
     CANCELLED = 'cancelled'
-    
+
     STATUS_CHOICES = [
+        (PENDING, 'Pending'),
         (TODO, 'To Do'),
         (IN_PROGRESS, 'In Progress'),
         (COMPLETED, 'Completed'),
         (CANCELLED, 'Cancelled'),
     ]
-    
+
+    URGENT = 'urgent'
     HIGH = 'high'
     MEDIUM = 'medium'
     LOW = 'low'
-    
+
     PRIORITY_CHOICES = [
+        (URGENT, 'Urgent'),
         (HIGH, 'High'),
         (MEDIUM, 'Medium'),
         (LOW, 'Low'),

@@ -91,7 +91,6 @@ class EventRegistrationSchema(ModelSchema):
 
 
 class EventRegistrationCreateSchema(Schema):
-    event_id: int
     donor_id: int
     number_of_guests: int = 1
     dietary_requirements: str = ""
@@ -163,7 +162,7 @@ class EventTaskUpdateSchema(Schema):
 
 
 # Event Endpoints
-@router.get("/events", response=List[EventSchema])
+@router.get("/", response=List[EventSchema])
 def list_events(request, status: Optional[str] = None, event_type: Optional[str] = None, limit: int = 50, offset: int = 0):
     """List all events with optional filtering."""
     queryset = Event.objects.all()
@@ -174,13 +173,7 @@ def list_events(request, status: Optional[str] = None, event_type: Optional[str]
     return queryset[offset:offset+limit]
 
 
-@router.get("/events/{event_id}", response=EventSchema)
-def get_event(request, event_id: int):
-    """Get a specific event by ID."""
-    return Event.objects.get(id=event_id)
-
-
-@router.get("/events/upcoming", response=List[EventSchema])
+@router.get("/upcoming", response=List[EventSchema])
 def list_upcoming_events(request, limit: int = 10):
     """List upcoming events."""
     now = timezone.now()
@@ -190,7 +183,13 @@ def list_upcoming_events(request, limit: int = 10):
     ).order_by('start_date')[:limit]
 
 
-@router.post("/events", response=EventSchema)
+@router.get("/{int:event_id}", response=EventSchema)
+def get_event(request, event_id: int):
+    """Get a specific event by ID."""
+    return Event.objects.get(id=event_id)
+
+
+@router.post("/", response=EventSchema)
 def create_event(request, payload: EventCreateSchema):
     """Create a new event."""
     data = payload.dict()
@@ -199,17 +198,17 @@ def create_event(request, payload: EventCreateSchema):
         data['campaign'] = Campaign.objects.get(id=data.pop('campaign_id'))
     else:
         data.pop('campaign_id', None)
-    
+
     event = Event.objects.create(**data)
     return event
 
 
-@router.put("/events/{event_id}", response=EventSchema)
+@router.put("/{event_id}", response=EventSchema)
 def update_event(request, event_id: int, payload: EventUpdateSchema):
     """Update an existing event."""
     event = Event.objects.get(id=event_id)
     data = payload.dict(exclude_unset=True)
-    
+
     if 'campaign_id' in data:
         if data['campaign_id']:
             from donations.models import Campaign
@@ -217,14 +216,14 @@ def update_event(request, event_id: int, payload: EventUpdateSchema):
         else:
             data.pop('campaign_id')
             data['campaign'] = None
-    
+
     for key, value in data.items():
         setattr(event, key, value)
     event.save()
     return event
 
 
-@router.delete("/events/{event_id}")
+@router.delete("/{event_id}")
 def delete_event(request, event_id: int):
     """Delete an event."""
     event = Event.objects.get(id=event_id)
@@ -232,7 +231,7 @@ def delete_event(request, event_id: int):
     return {"success": True}
 
 
-@router.get("/events/{event_id}/stats")
+@router.get("/{event_id}/stats")
 def get_event_stats(request, event_id: int):
     """Get event statistics."""
     event = Event.objects.get(id=event_id)
@@ -244,13 +243,13 @@ def get_event_stats(request, event_id: int):
         "fundraising_goal": float(event.fundraising_goal),
         "goal_percentage": (float(event.total_raised) / float(event.fundraising_goal) * 100) if event.fundraising_goal > 0 else 0,
         "sponsor_count": event.sponsors.count(),
-        "sponsor_total": float(event.sponsors.aggregate(total=sum('amount'))['total'] or 0),
+        "sponsor_total": float(event.sponsors.aggregate(total=models.Sum('amount'))['total'] or 0),
         "capacity_remaining": (event.capacity - event.actual_attendees) if event.capacity else None,
     }
 
 
 # Event Registration Endpoints
-@router.get("/events/{event_id}/registrations", response=List[EventRegistrationSchema])
+@router.get("/{event_id}/registrations", response=List[EventRegistrationSchema])
 def list_event_registrations(request, event_id: int, status: Optional[str] = None):
     """List all registrations for an event."""
     queryset = EventRegistration.objects.filter(event_id=event_id)
@@ -259,14 +258,14 @@ def list_event_registrations(request, event_id: int, status: Optional[str] = Non
     return queryset
 
 
-@router.post("/events/{event_id}/registrations", response=EventRegistrationSchema)
+@router.post("/{event_id}/registrations", response=EventRegistrationSchema)
 def create_event_registration(request, event_id: int, payload: EventRegistrationCreateSchema):
     """Register a donor for an event."""
     from donors.models import Donor
-    
+
     event = Event.objects.get(id=event_id)
     donor = Donor.objects.get(id=payload.donor_id)
-    
+
     registration = EventRegistration.objects.create(
         event=event,
         donor=donor,
@@ -280,7 +279,7 @@ def create_event_registration(request, event_id: int, payload: EventRegistration
     return registration
 
 
-@router.put("/events/{event_id}/registrations/{registration_id}", response=EventRegistrationSchema)
+@router.put("/{event_id}/registrations/{registration_id}", response=EventRegistrationSchema)
 def update_event_registration(request, event_id: int, registration_id: int, payload: EventRegistrationUpdateSchema):
     """Update an event registration."""
     registration = EventRegistration.objects.get(id=registration_id, event_id=event_id)
@@ -290,7 +289,7 @@ def update_event_registration(request, event_id: int, registration_id: int, payl
     return registration
 
 
-@router.post("/events/{event_id}/registrations/{registration_id}/checkin")
+@router.post("/{event_id}/registrations/{registration_id}/checkin")
 def checkin_registration(request, event_id: int, registration_id: int):
     """Check in a registration."""
     registration = EventRegistration.objects.get(id=registration_id, event_id=event_id)
@@ -301,32 +300,32 @@ def checkin_registration(request, event_id: int, registration_id: int):
 
 
 # Event Sponsor Endpoints
-@router.get("/events/{event_id}/sponsors", response=List[EventSponsorSchema])
+@router.get("/{event_id}/sponsors", response=List[EventSponsorSchema])
 def list_event_sponsors(request, event_id: int):
     """List all sponsors for an event."""
     return EventSponsor.objects.filter(event_id=event_id)
 
 
-@router.post("/events/{event_id}/sponsors", response=EventSponsorSchema)
+@router.post("/{event_id}/sponsors", response=EventSponsorSchema)
 def create_event_sponsor(request, event_id: int, payload: EventSponsorCreateSchema):
     """Add a sponsor to an event."""
     from donors.models import Donor
-    
+
     event = Event.objects.get(id=event_id)
     data = payload.dict()
-    
+
     if data.get('sponsor_contact_id'):
         data['sponsor_contact'] = Donor.objects.get(id=data.pop('sponsor_contact_id'))
     else:
         data.pop('sponsor_contact_id', None)
-    
+
     data['event'] = event
     sponsor = EventSponsor.objects.create(**data)
     return sponsor
 
 
 # Event Task Endpoints
-@router.get("/events/{event_id}/tasks", response=List[EventTaskSchema])
+@router.get("/{event_id}/tasks", response=List[EventTaskSchema])
 def list_event_tasks(request, event_id: int, status: Optional[str] = None):
     """List all tasks for an event."""
     queryset = EventTask.objects.filter(event_id=event_id)
@@ -335,50 +334,50 @@ def list_event_tasks(request, event_id: int, status: Optional[str] = None):
     return queryset
 
 
-@router.post("/events/{event_id}/tasks", response=EventTaskSchema)
+@router.post("/{event_id}/tasks", response=EventTaskSchema)
 def create_event_task(request, event_id: int, payload: EventTaskCreateSchema):
     """Create a task for an event."""
     from django.contrib.auth.models import User
-    
+
     event = Event.objects.get(id=event_id)
     data = payload.dict()
-    
+
     if data.get('assigned_to_id'):
         data['assigned_to'] = User.objects.get(id=data.pop('assigned_to_id'))
     else:
         data.pop('assigned_to_id', None)
-    
+
     data['event'] = event
     task = EventTask.objects.create(**data)
     return task
 
 
-@router.put("/events/{event_id}/tasks/{task_id}", response=EventTaskSchema)
+@router.put("/{event_id}/tasks/{task_id}", response=EventTaskSchema)
 def update_event_task(request, event_id: int, task_id: int, payload: EventTaskUpdateSchema):
     """Update an event task."""
     from django.contrib.auth.models import User
-    
+
     task = EventTask.objects.get(id=task_id, event_id=event_id)
     data = payload.dict(exclude_unset=True)
-    
+
     if 'assigned_to_id' in data:
         if data['assigned_to_id']:
             data['assigned_to'] = User.objects.get(id=data.pop('assigned_to_id'))
         else:
             data.pop('assigned_to_id')
             data['assigned_to'] = None
-    
+
     # Mark completed if status changed to completed
     if data.get('status') == EventTask.COMPLETED and task.status != EventTask.COMPLETED:
         data['completed_at'] = timezone.now()
-    
+
     for key, value in data.items():
         setattr(task, key, value)
     task.save()
     return task
 
 
-@router.delete("/events/{event_id}/tasks/{task_id}")
+@router.delete("/{event_id}/tasks/{task_id}")
 def delete_event_task(request, event_id: int, task_id: int):
     """Delete an event task."""
     task = EventTask.objects.get(id=task_id, event_id=event_id)
