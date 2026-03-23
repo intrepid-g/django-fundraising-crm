@@ -16,6 +16,14 @@ class Campaign(models.Model):
     class Meta:
         ordering = ['-start_date']
     
+    @property
+    def total_raised(self):
+        """Calculate total raised for this campaign."""
+        from django.db.models import Sum
+        return self.donations.filter(status=Donation.COMPLETED).aggregate(
+            total=Sum('amount')
+        )['total'] or 0
+    
     def __str__(self):
         return self.name
 
@@ -35,6 +43,7 @@ class Donation(models.Model):
     
     PENDING = 'pending'
     COMPLETED = 'completed'
+    ACKNOWLEDGED = 'acknowledged'
     FAILED = 'failed'
     REFUNDED = 'refunded'
     CANCELLED = 'cancelled'
@@ -42,9 +51,26 @@ class Donation(models.Model):
     STATUS_CHOICES = [
         (PENDING, 'Pending'),
         (COMPLETED, 'Completed'),
+        (ACKNOWLEDGED, 'Acknowledged'),
         (FAILED, 'Failed'),
         (REFUNDED, 'Refunded'),
         (CANCELLED, 'Cancelled'),
+    ]
+    
+    # Additional donation types
+    IN_KIND = 'in_kind'
+    MATCHING = 'matching'
+    STOCK = 'stock'
+    LEGACY = 'legacy'
+    
+    DONATION_TYPES = [
+        (ONE_TIME, 'One-Time'),
+        (RECURRING, 'Recurring'),
+        (PLEDGE, 'Pledge'),
+        (IN_KIND, 'In-Kind'),
+        (MATCHING, 'Matching'),
+        (STOCK, 'Stock'),
+        (LEGACY, 'Legacy'),
     ]
     
     MONTHLY = 'monthly'
@@ -90,6 +116,10 @@ class Donation(models.Model):
     tribute_honoree = models.CharField(max_length=255, blank=True)
     tribute_message = models.TextField(blank=True)
     
+    # Acknowledgment tracking
+    acknowledgment_date = models.DateField(null=True, blank=True)
+    acknowledgment_method = models.CharField(max_length=50, blank=True)  # email, mail, phone
+    
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -111,3 +141,89 @@ class Donation(models.Model):
         # Update donor stats after saving
         if self.status == self.COMPLETED:
             self.donor.update_donation_stats()
+
+
+class RecurringDonation(models.Model):
+    """Track recurring donation subscriptions."""
+    
+    WEEKLY = 'weekly'
+    BIWEEKLY = 'biweekly'
+    MONTHLY = 'monthly'
+    QUARTERLY = 'quarterly'
+    ANNUALLY = 'annually'
+    
+    FREQUENCY_CHOICES = [
+        (WEEKLY, 'Weekly'),
+        (BIWEEKLY, 'Bi-weekly'),
+        (MONTHLY, 'Monthly'),
+        (QUARTERLY, 'Quarterly'),
+        (ANNUALLY, 'Annually'),
+    ]
+    
+    ACTIVE = 'active'
+    PAUSED = 'paused'
+    CANCELLED = 'cancelled'
+    EXPIRED = 'expired'
+    
+    STATUS_CHOICES = [
+        (ACTIVE, 'Active'),
+        (PAUSED, 'Paused'),
+        (CANCELLED, 'Cancelled'),
+        (EXPIRED, 'Expired'),
+    ]
+    
+    donor = models.ForeignKey(Donor, on_delete=models.CASCADE, related_name='recurring_donations')
+    campaign = models.ForeignKey(Campaign, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    frequency = models.CharField(max_length=20, choices=FREQUENCY_CHOICES, default=MONTHLY)
+    
+    # Dates
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    next_payment_date = models.DateField(null=True, blank=True)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=ACTIVE)
+    
+    # Payment method
+    payment_method = models.CharField(max_length=50, blank=True)
+    payment_token = models.CharField(max_length=255, blank=True)  # Secure token reference
+    
+    # Cancellation
+    cancelled_date = models.DateField(null=True, blank=True)
+    cancellation_reason = models.TextField(blank=True)
+    
+    # Tracking
+    total_payments = models.PositiveIntegerField(default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.donor} - ${self.amount}/{self.frequency}"
+    
+    def calculate_next_payment_date(self):
+        """Calculate the next payment date based on frequency."""
+        from datetime import timedelta
+        from dateutil.relativedelta import relativedelta
+        
+        base_date = self.next_payment_date or self.start_date
+        
+        if self.frequency == self.WEEKLY:
+            return base_date + timedelta(weeks=1)
+        elif self.frequency == self.BIWEEKLY:
+            return base_date + timedelta(weeks=2)
+        elif self.frequency == self.MONTHLY:
+            return base_date + relativedelta(months=1)
+        elif self.frequency == self.QUARTERLY:
+            return base_date + relativedelta(months=3)
+        elif self.frequency == self.ANNUALLY:
+            return base_date + relativedelta(years=1)
+        
+        return base_date
