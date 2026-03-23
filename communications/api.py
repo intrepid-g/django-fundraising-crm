@@ -1,14 +1,15 @@
-from ninja import NinjaAPI, Schema, ModelSchema
+from ninja import Router, Schema, ModelSchema
 from datetime import datetime
 from typing import List, Optional
 from django.utils import timezone
+from django.db import models
 from .models import (
     Communication, CommunicationTemplate, CommunicationSchedule,
     CommunicationPreference, CallLog
 )
 
 
-api = NinjaAPI()
+router = Router()
 
 
 # Schemas
@@ -140,7 +141,7 @@ class CallLogCreateSchema(Schema):
 
 
 # Communication Endpoints
-@api.get("/communications", response=List[CommunicationSchema])
+@router.get("/communications", response=List[CommunicationSchema])
 def list_communications(
     request,
     donor_id: Optional[int] = None,
@@ -163,13 +164,13 @@ def list_communications(
     return queryset[offset:offset+limit]
 
 
-@api.get("/communications/{communication_id}", response=CommunicationSchema)
+@router.get("/communications/{communication_id}", response=CommunicationSchema)
 def get_communication(request, communication_id: int):
     """Get a specific communication by ID."""
     return Communication.objects.get(id=communication_id)
 
 
-@api.post("/communications", response=CommunicationSchema)
+@router.post("/communications", response=CommunicationSchema)
 def create_communication(request, payload: CommunicationCreateSchema):
     """Create a new communication record."""
     from donors.models import Donor
@@ -199,7 +200,7 @@ def create_communication(request, payload: CommunicationCreateSchema):
     return communication
 
 
-@api.put("/communications/{communication_id}", response=CommunicationSchema)
+@router.put("/communications/{communication_id}", response=CommunicationSchema)
 def update_communication(request, communication_id: int, payload: CommunicationUpdateSchema):
     """Update an existing communication."""
     communication = Communication.objects.get(id=communication_id)
@@ -209,7 +210,7 @@ def update_communication(request, communication_id: int, payload: CommunicationU
     return communication
 
 
-@api.get("/communications/followups", response=List[CommunicationSchema])
+@router.get("/communications/followups", response=List[CommunicationSchema])
 def list_followups(request, overdue_only: bool = False, limit: int = 50):
     """List communications requiring follow-up."""
     queryset = Communication.objects.filter(
@@ -221,7 +222,7 @@ def list_followups(request, overdue_only: bool = False, limit: int = 50):
     return queryset[:limit]
 
 
-@api.post("/communications/{communication_id}/complete-followup")
+@router.post("/communications/{communication_id}/complete-followup")
 def complete_followup(request, communication_id: int):
     """Mark a follow-up as completed."""
     communication = Communication.objects.get(id=communication_id)
@@ -231,7 +232,7 @@ def complete_followup(request, communication_id: int):
 
 
 # Template Endpoints
-@api.get("/communications/templates", response=List[CommunicationTemplateSchema])
+@router.get("/communications/templates", response=List[CommunicationTemplateSchema])
 def list_templates(request, template_type: Optional[str] = None, category: Optional[str] = None):
     """List all communication templates."""
     queryset = CommunicationTemplate.objects.filter(is_active=True)
@@ -242,20 +243,20 @@ def list_templates(request, template_type: Optional[str] = None, category: Optio
     return queryset
 
 
-@api.get("/communications/templates/{template_id}", response=CommunicationTemplateSchema)
+@router.get("/communications/templates/{template_id}", response=CommunicationTemplateSchema)
 def get_template(request, template_id: int):
     """Get a specific template."""
     return CommunicationTemplate.objects.get(id=template_id)
 
 
-@api.post("/communications/templates", response=CommunicationTemplateSchema)
+@router.post("/communications/templates", response=CommunicationTemplateSchema)
 def create_template(request, payload: CommunicationTemplateCreateSchema):
     """Create a new communication template."""
     template = CommunicationTemplate.objects.create(**payload.dict())
     return template
 
 
-@api.post("/communications/templates/{template_id}/render")
+@router.post("/communications/templates/{template_id}/render")
 def render_template(request, template_id: int, context: dict):
     """Render a template with given context."""
     template = CommunicationTemplate.objects.get(id=template_id)
@@ -263,7 +264,7 @@ def render_template(request, template_id: int, context: dict):
 
 
 # Schedule Endpoints
-@api.get("/communications/scheduled", response=List[CommunicationScheduleSchema])
+@router.get("/communications/scheduled", response=List[CommunicationScheduleSchema])
 def list_scheduled(request, donor_id: Optional[int] = None, status: Optional[str] = None):
     """List scheduled communications."""
     queryset = CommunicationSchedule.objects.all()
@@ -274,7 +275,7 @@ def list_scheduled(request, donor_id: Optional[int] = None, status: Optional[str
     return queryset
 
 
-@api.post("/communications/scheduled", response=CommunicationScheduleSchema)
+@router.post("/communications/scheduled", response=CommunicationScheduleSchema)
 def schedule_communication(request, payload: CommunicationScheduleCreateSchema):
     """Schedule a communication."""
     from donors.models import Donor
@@ -292,7 +293,7 @@ def schedule_communication(request, payload: CommunicationScheduleCreateSchema):
     return schedule
 
 
-@api.delete("/communications/scheduled/{schedule_id}")
+@router.delete("/communications/scheduled/{schedule_id}")
 def cancel_scheduled(request, schedule_id: int):
     """Cancel a scheduled communication."""
     schedule = CommunicationSchedule.objects.get(id=schedule_id)
@@ -302,7 +303,7 @@ def cancel_scheduled(request, schedule_id: int):
 
 
 # Preference Endpoints
-@api.get("/donors/{donor_id}/preferences", response=CommunicationPreferenceSchema)
+@router.get("/donors/{donor_id}/preferences", response=CommunicationPreferenceSchema)
 def get_preferences(request, donor_id: int):
     """Get communication preferences for a donor."""
     from donors.models import Donor
@@ -312,7 +313,7 @@ def get_preferences(request, donor_id: int):
     return preference
 
 
-@api.put("/donors/{donor_id}/preferences", response=CommunicationPreferenceSchema)
+@router.put("/donors/{donor_id}/preferences", response=CommunicationPreferenceSchema)
 def update_preferences(request, donor_id: int, payload: CommunicationPreferenceSchema):
     """Update communication preferences for a donor."""
     from donors.models import Donor
@@ -328,13 +329,13 @@ def update_preferences(request, donor_id: int, payload: CommunicationPreferenceS
 
 
 # Call Log Endpoints
-@api.get("/communications/{communication_id}/call", response=CallLogSchema)
+@router.get("/communications/{communication_id}/call", response=CallLogSchema)
 def get_call_log(request, communication_id: int):
     """Get call log details for a communication."""
     return CallLog.objects.get(communication_id=communication_id)
 
 
-@api.post("/communications/{communication_id}/call", response=CallLogSchema)
+@router.post("/communications/{communication_id}/call", response=CallLogSchema)
 def create_call_log(request, communication_id: int, payload: CallLogCreateSchema):
     """Create a call log for a communication."""
     communication = Communication.objects.get(id=communication_id)
@@ -347,7 +348,7 @@ def create_call_log(request, communication_id: int, payload: CallLogCreateSchema
 
 
 # Stats Endpoint
-@api.get("/communications/stats/summary")
+@router.get("/communications/stats/summary")
 def get_communication_stats(request, donor_id: Optional[int] = None):
     """Get communication statistics."""
     from django.db.models import Count, Avg

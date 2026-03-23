@@ -1,11 +1,12 @@
-from ninja import NinjaAPI, Schema, ModelSchema
+from ninja import Router, Schema, ModelSchema
 from ninja.orm import create_schema
 from datetime import datetime
 from typing import List, Optional
+from django.db import models
 from .models import Donor
 
 
-api = NinjaAPI()
+router = Router()
 
 
 # Schemas
@@ -69,26 +70,26 @@ class DonorSearchSchema(Schema):
 
 
 # Endpoints
-@api.get("/donors", response=List[DonorSchema])
+@router.get("/donors", response=List[DonorSchema])
 def list_donors(request, limit: int = 50, offset: int = 0):
     """List all donors with pagination."""
     return Donor.objects.all()[offset:offset+limit]
 
 
-@api.get("/donors/{donor_id}", response=DonorSchema)
+@router.get("/donors/{donor_id}", response=DonorSchema)
 def get_donor(request, donor_id: int):
     """Get a specific donor by ID."""
     return Donor.objects.get(id=donor_id)
 
 
-@api.post("/donors", response=DonorSchema)
+@router.post("/donors", response=DonorSchema)
 def create_donor(request, payload: DonorCreateSchema):
     """Create a new donor."""
     donor = Donor.objects.create(**payload.dict())
     return donor
 
 
-@api.put("/donors/{donor_id}", response=DonorSchema)
+@router.put("/donors/{donor_id}", response=DonorSchema)
 def update_donor(request, donor_id: int, payload: DonorUpdateSchema):
     """Update an existing donor."""
     donor = Donor.objects.get(id=donor_id)
@@ -98,7 +99,7 @@ def update_donor(request, donor_id: int, payload: DonorUpdateSchema):
     return donor
 
 
-@api.delete("/donors/{donor_id}")
+@router.delete("/donors/{donor_id}")
 def delete_donor(request, donor_id: int):
     """Delete a donor."""
     donor = Donor.objects.get(id=donor_id)
@@ -106,7 +107,7 @@ def delete_donor(request, donor_id: int):
     return {"success": True}
 
 
-@api.post("/donors/search", response=List[DonorSchema])
+@router.post("/donors/search", response=List[DonorSchema])
 def search_donors(request, payload: DonorSearchSchema):
     """Search donors by various criteria."""
     queryset = Donor.objects.all()
@@ -138,7 +139,7 @@ def search_donors(request, payload: DonorSearchSchema):
     return queryset[:100]
 
 
-@api.get("/donors/{donor_id}/stats")
+@router.get("/donors/{donor_id}/stats")
 def get_donor_stats(request, donor_id: int):
     """Get donation statistics for a donor."""
     donor = Donor.objects.get(id=donor_id)
@@ -151,7 +152,7 @@ def get_donor_stats(request, donor_id: int):
     }
 
 
-@api.post("/donors/{donor_id}/tags")
+@router.post("/donors/{donor_id}/tags")
 def add_donor_tags(request, donor_id: int, tags: List[str]):
     """Add tags to a donor."""
     donor = Donor.objects.get(id=donor_id)
@@ -162,7 +163,7 @@ def add_donor_tags(request, donor_id: int, tags: List[str]):
     return {"success": True, "tags": donor.tags}
 
 
-@api.delete("/donors/{donor_id}/tags")
+@router.delete("/donors/{donor_id}/tags")
 def remove_donor_tags(request, donor_id: int, tags: List[str]):
     """Remove tags from a donor."""
     donor = Donor.objects.get(id=donor_id)

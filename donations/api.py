@@ -1,11 +1,12 @@
-from ninja import NinjaAPI, Schema, ModelSchema
+from ninja import Router, Schema, ModelSchema
 from datetime import datetime, date
 from typing import List, Optional
 from decimal import Decimal
+from django.db import models
 from .models import Donation, Campaign
 
 
-api = NinjaAPI()
+router = Router()
 
 
 # Schemas
@@ -80,7 +81,7 @@ class DonationUpdateSchema(Schema):
 
 
 # Campaign Endpoints
-@api.get("/campaigns", response=List[CampaignSchema])
+@router.get("/campaigns", response=List[CampaignSchema])
 def list_campaigns(request, active_only: bool = False):
     """List all campaigns."""
     queryset = Campaign.objects.all()
@@ -89,20 +90,20 @@ def list_campaigns(request, active_only: bool = False):
     return queryset
 
 
-@api.get("/campaigns/{campaign_id}", response=CampaignSchema)
+@router.get("/campaigns/{campaign_id}", response=CampaignSchema)
 def get_campaign(request, campaign_id: int):
     """Get a specific campaign."""
     return Campaign.objects.get(id=campaign_id)
 
 
-@api.post("/campaigns", response=CampaignSchema)
+@router.post("/campaigns", response=CampaignSchema)
 def create_campaign(request, payload: CampaignCreateSchema):
     """Create a new campaign."""
     campaign = Campaign.objects.create(**payload.dict())
     return campaign
 
 
-@api.get("/campaigns/{campaign_id}/stats")
+@router.get("/campaigns/{campaign_id}/stats")
 def get_campaign_stats(request, campaign_id: int):
     """Get statistics for a campaign."""
     campaign = Campaign.objects.get(id=campaign_id)
@@ -122,7 +123,7 @@ def get_campaign_stats(request, campaign_id: int):
 
 
 # Donation Endpoints
-@api.get("/donations", response=List[DonationSchema])
+@router.get("/donations", response=List[DonationSchema])
 def list_donations(request, limit: int = 50, offset: int = 0, status: str = None):
     """List all donations with optional filtering."""
     queryset = Donation.objects.all()
@@ -131,13 +132,13 @@ def list_donations(request, limit: int = 50, offset: int = 0, status: str = None
     return queryset[offset:offset+limit]
 
 
-@api.get("/donations/{donation_id}", response=DonationSchema)
+@router.get("/donations/{donation_id}", response=DonationSchema)
 def get_donation(request, donation_id: int):
     """Get a specific donation."""
     return Donation.objects.get(id=donation_id)
 
 
-@api.post("/donations", response=DonationSchema)
+@router.post("/donations", response=DonationSchema)
 def create_donation(request, payload: DonationCreateSchema):
     """Create a new donation."""
     from donors.models import Donor
@@ -157,7 +158,7 @@ def create_donation(request, payload: DonationCreateSchema):
     return donation
 
 
-@api.put("/donations/{donation_id}", response=DonationSchema)
+@router.put("/donations/{donation_id}", response=DonationSchema)
 def update_donation(request, donation_id: int, payload: DonationUpdateSchema):
     """Update a donation."""
     donation = Donation.objects.get(id=donation_id)
@@ -167,7 +168,7 @@ def update_donation(request, donation_id: int, payload: DonationUpdateSchema):
     return donation
 
 
-@api.post("/donations/{donation_id}/complete")
+@router.post("/donations/{donation_id}/complete")
 def complete_donation(request, donation_id: int, received_date: date = None):
     """Mark a donation as completed."""
     donation = Donation.objects.get(id=donation_id)
@@ -177,7 +178,7 @@ def complete_donation(request, donation_id: int, received_date: date = None):
     return {"success": True, "donation_id": donation_id}
 
 
-@api.get("/donations/recurring")
+@router.get("/donations/recurring")
 def list_recurring_donations(request):
     """List all active recurring donations."""
     donations = Donation.objects.filter(
@@ -197,7 +198,7 @@ def list_recurring_donations(request):
     ]
 
 
-@api.get("/donations/stats/summary")
+@router.get("/donations/stats/summary")
 def get_donation_summary(request, start_date: date = None, end_date: date = None):
     """Get donation summary statistics."""
     queryset = Donation.objects.filter(status=Donation.COMPLETED)

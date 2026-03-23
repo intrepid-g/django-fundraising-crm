@@ -1,12 +1,13 @@
-from ninja import NinjaAPI, Schema, ModelSchema
+from ninja import Router, Schema, ModelSchema
 from ninja.orm import create_schema
 from datetime import datetime
 from typing import List, Optional
 from django.utils import timezone
+from django.db import models
 from .models import Event, EventRegistration, EventSponsor, EventTask
 
 
-api = NinjaAPI()
+router = Router()
 
 
 # Schemas
@@ -162,7 +163,7 @@ class EventTaskUpdateSchema(Schema):
 
 
 # Event Endpoints
-@api.get("/events", response=List[EventSchema])
+@router.get("/events", response=List[EventSchema])
 def list_events(request, status: Optional[str] = None, event_type: Optional[str] = None, limit: int = 50, offset: int = 0):
     """List all events with optional filtering."""
     queryset = Event.objects.all()
@@ -173,13 +174,13 @@ def list_events(request, status: Optional[str] = None, event_type: Optional[str]
     return queryset[offset:offset+limit]
 
 
-@api.get("/events/{event_id}", response=EventSchema)
+@router.get("/events/{event_id}", response=EventSchema)
 def get_event(request, event_id: int):
     """Get a specific event by ID."""
     return Event.objects.get(id=event_id)
 
 
-@api.get("/events/upcoming", response=List[EventSchema])
+@router.get("/events/upcoming", response=List[EventSchema])
 def list_upcoming_events(request, limit: int = 10):
     """List upcoming events."""
     now = timezone.now()
@@ -189,7 +190,7 @@ def list_upcoming_events(request, limit: int = 10):
     ).order_by('start_date')[:limit]
 
 
-@api.post("/events", response=EventSchema)
+@router.post("/events", response=EventSchema)
 def create_event(request, payload: EventCreateSchema):
     """Create a new event."""
     data = payload.dict()
@@ -203,7 +204,7 @@ def create_event(request, payload: EventCreateSchema):
     return event
 
 
-@api.put("/events/{event_id}", response=EventSchema)
+@router.put("/events/{event_id}", response=EventSchema)
 def update_event(request, event_id: int, payload: EventUpdateSchema):
     """Update an existing event."""
     event = Event.objects.get(id=event_id)
@@ -223,7 +224,7 @@ def update_event(request, event_id: int, payload: EventUpdateSchema):
     return event
 
 
-@api.delete("/events/{event_id}")
+@router.delete("/events/{event_id}")
 def delete_event(request, event_id: int):
     """Delete an event."""
     event = Event.objects.get(id=event_id)
@@ -231,7 +232,7 @@ def delete_event(request, event_id: int):
     return {"success": True}
 
 
-@api.get("/events/{event_id}/stats")
+@router.get("/events/{event_id}/stats")
 def get_event_stats(request, event_id: int):
     """Get event statistics."""
     event = Event.objects.get(id=event_id)
@@ -249,7 +250,7 @@ def get_event_stats(request, event_id: int):
 
 
 # Event Registration Endpoints
-@api.get("/events/{event_id}/registrations", response=List[EventRegistrationSchema])
+@router.get("/events/{event_id}/registrations", response=List[EventRegistrationSchema])
 def list_event_registrations(request, event_id: int, status: Optional[str] = None):
     """List all registrations for an event."""
     queryset = EventRegistration.objects.filter(event_id=event_id)
@@ -258,7 +259,7 @@ def list_event_registrations(request, event_id: int, status: Optional[str] = Non
     return queryset
 
 
-@api.post("/events/{event_id}/registrations", response=EventRegistrationSchema)
+@router.post("/events/{event_id}/registrations", response=EventRegistrationSchema)
 def create_event_registration(request, event_id: int, payload: EventRegistrationCreateSchema):
     """Register a donor for an event."""
     from donors.models import Donor
@@ -279,7 +280,7 @@ def create_event_registration(request, event_id: int, payload: EventRegistration
     return registration
 
 
-@api.put("/events/{event_id}/registrations/{registration_id}", response=EventRegistrationSchema)
+@router.put("/events/{event_id}/registrations/{registration_id}", response=EventRegistrationSchema)
 def update_event_registration(request, event_id: int, registration_id: int, payload: EventRegistrationUpdateSchema):
     """Update an event registration."""
     registration = EventRegistration.objects.get(id=registration_id, event_id=event_id)
@@ -289,7 +290,7 @@ def update_event_registration(request, event_id: int, registration_id: int, payl
     return registration
 
 
-@api.post("/events/{event_id}/registrations/{registration_id}/checkin")
+@router.post("/events/{event_id}/registrations/{registration_id}/checkin")
 def checkin_registration(request, event_id: int, registration_id: int):
     """Check in a registration."""
     registration = EventRegistration.objects.get(id=registration_id, event_id=event_id)
@@ -300,13 +301,13 @@ def checkin_registration(request, event_id: int, registration_id: int):
 
 
 # Event Sponsor Endpoints
-@api.get("/events/{event_id}/sponsors", response=List[EventSponsorSchema])
+@router.get("/events/{event_id}/sponsors", response=List[EventSponsorSchema])
 def list_event_sponsors(request, event_id: int):
     """List all sponsors for an event."""
     return EventSponsor.objects.filter(event_id=event_id)
 
 
-@api.post("/events/{event_id}/sponsors", response=EventSponsorSchema)
+@router.post("/events/{event_id}/sponsors", response=EventSponsorSchema)
 def create_event_sponsor(request, event_id: int, payload: EventSponsorCreateSchema):
     """Add a sponsor to an event."""
     from donors.models import Donor
@@ -325,7 +326,7 @@ def create_event_sponsor(request, event_id: int, payload: EventSponsorCreateSche
 
 
 # Event Task Endpoints
-@api.get("/events/{event_id}/tasks", response=List[EventTaskSchema])
+@router.get("/events/{event_id}/tasks", response=List[EventTaskSchema])
 def list_event_tasks(request, event_id: int, status: Optional[str] = None):
     """List all tasks for an event."""
     queryset = EventTask.objects.filter(event_id=event_id)
@@ -334,7 +335,7 @@ def list_event_tasks(request, event_id: int, status: Optional[str] = None):
     return queryset
 
 
-@api.post("/events/{event_id}/tasks", response=EventTaskSchema)
+@router.post("/events/{event_id}/tasks", response=EventTaskSchema)
 def create_event_task(request, event_id: int, payload: EventTaskCreateSchema):
     """Create a task for an event."""
     from django.contrib.auth.models import User
@@ -352,7 +353,7 @@ def create_event_task(request, event_id: int, payload: EventTaskCreateSchema):
     return task
 
 
-@api.put("/events/{event_id}/tasks/{task_id}", response=EventTaskSchema)
+@router.put("/events/{event_id}/tasks/{task_id}", response=EventTaskSchema)
 def update_event_task(request, event_id: int, task_id: int, payload: EventTaskUpdateSchema):
     """Update an event task."""
     from django.contrib.auth.models import User
@@ -377,7 +378,7 @@ def update_event_task(request, event_id: int, task_id: int, payload: EventTaskUp
     return task
 
 
-@api.delete("/events/{event_id}/tasks/{task_id}")
+@router.delete("/events/{event_id}/tasks/{task_id}")
 def delete_event_task(request, event_id: int, task_id: int):
     """Delete an event task."""
     task = EventTask.objects.get(id=task_id, event_id=event_id)

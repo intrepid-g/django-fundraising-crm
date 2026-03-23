@@ -1,9 +1,9 @@
 from ninja import NinjaAPI
-from donors.api import api as donors_api
-from donations.api import api as donations_api
-from events.api import api as events_api
-from communications.api import api as communications_api
-from reports.api import api as reports_api
+from donors.api import router as donors_router
+from donations.api import router as donations_router
+from events.api import router as events_router
+from communications.api import router as communications_router
+from reports.api import router as reports_router
 
 
 # Main API instance
@@ -14,12 +14,12 @@ api = NinjaAPI(
 )
 
 
-# Register sub-APIs
-api.add_router("/donors/", donors_api)
-api.add_router("/donations/", donations_api)
-api.add_router("/events/", events_api)
-api.add_router("/communications/", communications_api)
-api.add_router("/reports/", reports_api)
+# Register sub-routers
+api.add_router("/donors/", donors_router)
+api.add_router("/donations/", donations_router)
+api.add_router("/events/", events_router)
+api.add_router("/communications/", communications_router)
+api.add_router("/reports/", reports_router)
 
 
 # Health check endpoint
