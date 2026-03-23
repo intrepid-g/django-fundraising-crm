@@ -30,7 +30,7 @@ class DonorModelTests(TestCase):
         self.assertEqual(self.donor.first_name, "Jane")
         self.assertEqual(self.donor.last_name, "Smith")
         self.assertEqual(self.donor.email, "jane.smith@example.com")
-        self.assertEqual(str(self.donor), "Jane Smith")
+        self.assertEqual(str(self.donor), "Jane Smith (jane.smith@example.com)")
     
     def test_donor_types(self):
         """Test donor type choices."""

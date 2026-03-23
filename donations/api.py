@@ -123,7 +123,7 @@ def get_campaign_stats(request, campaign_id: int):
 
 
 # Donation Endpoints
-@router.get("/donations", response=List[DonationSchema])
+@router.get("/", response=List[DonationSchema])
 def list_donations(request, limit: int = 50, offset: int = 0, status: str = None):
     """List all donations with optional filtering."""
     queryset = Donation.objects.all()
@@ -132,13 +132,13 @@ def list_donations(request, limit: int = 50, offset: int = 0, status: str = None
     return queryset[offset:offset+limit]
 
 
-@router.get("/donations/{donation_id}", response=DonationSchema)
+@router.get("/{donation_id}", response=DonationSchema)
 def get_donation(request, donation_id: int):
     """Get a specific donation."""
     return Donation.objects.get(id=donation_id)
 
 
-@router.post("/donations", response=DonationSchema)
+@router.post("/", response=DonationSchema)
 def create_donation(request, payload: DonationCreateSchema):
     """Create a new donation."""
     from donors.models import Donor
@@ -158,7 +158,7 @@ def create_donation(request, payload: DonationCreateSchema):
     return donation
 
 
-@router.put("/donations/{donation_id}", response=DonationSchema)
+@router.put("/{donation_id}", response=DonationSchema)
 def update_donation(request, donation_id: int, payload: DonationUpdateSchema):
     """Update a donation."""
     donation = Donation.objects.get(id=donation_id)
@@ -168,7 +168,7 @@ def update_donation(request, donation_id: int, payload: DonationUpdateSchema):
     return donation
 
 
-@router.post("/donations/{donation_id}/complete")
+@router.post("/{donation_id}/complete")
 def complete_donation(request, donation_id: int, received_date: date = None):
     """Mark a donation as completed."""
     donation = Donation.objects.get(id=donation_id)
@@ -178,7 +178,7 @@ def complete_donation(request, donation_id: int, received_date: date = None):
     return {"success": True, "donation_id": donation_id}
 
 
-@router.get("/donations/recurring")
+@router.get("/recurring")
 def list_recurring_donations(request):
     """List all active recurring donations."""
     donations = Donation.objects.filter(
@@ -198,7 +198,7 @@ def list_recurring_donations(request):
     ]
 
 
-@router.get("/donations/stats/summary")
+@router.get("/stats/summary")
 def get_donation_summary(request, start_date: date = None, end_date: date = None):
     """Get donation summary statistics."""
     queryset = Donation.objects.filter(status=Donation.COMPLETED)

@@ -115,7 +115,7 @@ class DashboardWidgetSchema(Schema):
 
 
 # Report Endpoints
-@router.get("/reports", response=List[ReportSchema])
+@router.get("/", response=List[ReportSchema])
 def list_reports(
     request,
     report_type: Optional[str] = None,
@@ -131,20 +131,20 @@ def list_reports(
     return queryset
 
 
-@router.get("/reports/{report_id}", response=ReportSchema)
+@router.get("/{report_id}", response=ReportSchema)
 def get_report(request, report_id: int):
     """Get a specific report configuration."""
     return Report.objects.get(id=report_id)
 
 
-@router.post("/reports", response=ReportSchema)
+@router.post("/", response=ReportSchema)
 def create_report(request, payload: ReportCreateSchema):
     """Create a new saved report."""
     report = Report.objects.create(**payload.dict())
     return report
 
 
-@router.put("/reports/{report_id}", response=ReportSchema)
+@router.put("/{report_id}", response=ReportSchema)
 def update_report(request, report_id: int, payload: ReportUpdateSchema):
     """Update a saved report."""
     report = Report.objects.get(id=report_id)
@@ -154,7 +154,7 @@ def update_report(request, report_id: int, payload: ReportUpdateSchema):
     return report
 
 
-@router.delete("/reports/{report_id}")
+@router.delete("/{report_id}")
 def delete_report(request, report_id: int):
     """Delete a saved report."""
     report = Report.objects.get(id=report_id)
@@ -163,7 +163,7 @@ def delete_report(request, report_id: int):
 
 
 # Report Execution Endpoints
-@router.post("/reports/{report_id}/execute")
+@router.post("/{report_id}/execute")
 def execute_report(
     request,
     report_id: int,
@@ -229,7 +229,7 @@ def execute_report(
     }
 
 
-@router.get("/reports/{report_id}/executions", response=List[ReportExecutionSchema])
+@router.get("/{report_id}/executions", response=List[ReportExecutionSchema])
 def list_report_executions(request, report_id: int, limit: int = 10):
     """List recent executions of a report."""
     return ReportExecution.objects.filter(report_id=report_id).order_by('-created_at')[:limit]
@@ -298,7 +298,7 @@ def get_dashboard_data(request, dashboard_id: int):
 
 
 # Metric Endpoints
-@router.get("/reports/metrics", response=List[MetricDefinitionSchema])
+@router.get("/metrics", response=List[MetricDefinitionSchema])
 def list_metrics(request, entity_type: Optional[str] = None):
     """List available metrics."""
     queryset = MetricDefinition.objects.filter(is_active=True)
@@ -307,7 +307,7 @@ def list_metrics(request, entity_type: Optional[str] = None):
     return queryset
 
 
-@router.get("/reports/metrics/{metric_slug}")
+@router.get("/metrics/{metric_slug}")
 def get_metric_value(request, metric_slug: str, filters: Dict[str, Any] = {}):
     """Get current value for a specific metric."""
     metric = MetricDefinition.objects.get(slug=metric_slug)
@@ -322,7 +322,7 @@ def get_metric_value(request, metric_slug: str, filters: Dict[str, Any] = {}):
 
 
 # Quick Stats Endpoints
-@router.get("/reports/stats/overview")
+@router.get("/stats/overview")
 def get_overview_stats(request):
     """Get high-level CRM statistics."""
     from donors.models import Donor
