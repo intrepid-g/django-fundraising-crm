@@ -12,9 +12,9 @@ router = Router()
 
 # Schemas
 class ReportSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = Report
-        model_fields = [
+        fields = [
             'id', 'name', 'report_type', 'description',
             'filters', 'group_by', 'metrics', 'sort_order',
             'date_range_start', 'date_range_end', 'date_range_preset',
@@ -57,9 +57,9 @@ class ReportUpdateSchema(Schema):
 
 
 class DashboardSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = Dashboard
-        model_fields = [
+        fields = [
             'id', 'name', 'description', 'layout_config', 'widgets',
             'is_default', 'is_shared', 'is_active', 'created_at', 'updated_at'
         ]
@@ -75,9 +75,9 @@ class DashboardCreateSchema(Schema):
 
 
 class ReportExecutionSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = ReportExecution
-        model_fields = [
+        fields = [
             'id', 'status', 'parameters', 'result_summary', 'row_count',
             'output_format', 'started_at', 'completed_at', 'execution_time_seconds',
             'error_message', 'created_at'
@@ -85,9 +85,9 @@ class ReportExecutionSchema(ModelSchema):
 
 
 class MetricDefinitionSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = MetricDefinition
-        model_fields = [
+        fields = [
             'id', 'name', 'slug', 'description', 'entity_type',
             'calculation_type', 'field_name', 'custom_formula',
             'format_string', 'unit', 'is_active', 'is_system',

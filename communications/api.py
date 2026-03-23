@@ -14,9 +14,9 @@ router = Router()
 
 # Schemas
 class CommunicationSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = Communication
-        model_fields = [
+        fields = [
             'id', 'communication_type', 'direction', 'status',
             'subject', 'content', 'summary',
             'from_address', 'to_address',
@@ -65,9 +65,9 @@ class CommunicationUpdateSchema(Schema):
 
 
 class CommunicationTemplateSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = CommunicationTemplate
-        model_fields = [
+        fields = [
             'id', 'name', 'template_type', 'subject_template', 'body_template',
             'category', 'is_active', 'usage_count', 'available_variables',
             'created_at', 'updated_at'
@@ -84,9 +84,9 @@ class CommunicationTemplateCreateSchema(Schema):
 
 
 class CommunicationScheduleSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = CommunicationSchedule
-        model_fields = [
+        fields = [
             'id', 'scheduled_date', 'status', 'subject', 'content',
             'template_context', 'is_automated', 'automation_trigger',
             'sent_date', 'error_message', 'created_at'
@@ -105,9 +105,9 @@ class CommunicationScheduleCreateSchema(Schema):
 
 
 class CommunicationPreferenceSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = CommunicationPreference
-        model_fields = [
+        fields = [
             'id', 'email_opt_in', 'phone_opt_in', 'sms_opt_in', 'mail_opt_in',
             'preferred_frequency', 'preferred_topics', 'exclude_topics',
             'preferred_contact_time', 'timezone',
@@ -117,9 +117,9 @@ class CommunicationPreferenceSchema(ModelSchema):
 
 
 class CallLogSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = CallLog
-        model_fields = [
+        fields = [
             'id', 'phone_number', 'duration_seconds', 'was_answered',
             'went_to_voicemail', 'call_quality', 'recording_url',
             'call_outcome', 'follow_up_required', 'follow_up_notes',

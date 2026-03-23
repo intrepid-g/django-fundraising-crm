@@ -11,9 +11,9 @@ router = Router()
 
 # Schemas
 class CampaignSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = Campaign
-        model_fields = ['id', 'name', 'description', 'goal_amount', 'start_date', 'end_date', 'is_active', 'created_at']
+        fields = ['id', 'name', 'description', 'goal_amount', 'start_date', 'end_date', 'is_active', 'created_at']
 
 
 class CampaignCreateSchema(Schema):
@@ -29,9 +29,9 @@ class DonationSchema(ModelSchema):
     donor_name: str
     campaign_name: Optional[str] = None
     
-    class Config:
+    class Meta:
         model = Donation
-        model_fields = [
+        fields = [
             'id', 'amount', 'donation_type', 'frequency', 'status',
             'donation_date', 'received_date', 'payment_method',
             'payment_reference', 'notes', 'is_anonymous', 'is_tax_deductible',

@@ -12,9 +12,9 @@ router = Router()
 
 # Schemas
 class EventSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = Event
-        model_fields = [
+        fields = [
             'id', 'name', 'description', 'event_type', 'status',
             'start_date', 'end_date', 'setup_date',
             'venue_name', 'venue_address', 'venue_city', 'venue_state',
@@ -81,9 +81,9 @@ class EventUpdateSchema(Schema):
 
 
 class EventRegistrationSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = EventRegistration
-        model_fields = [
+        fields = [
             'id', 'status', 'number_of_guests', 'dietary_requirements',
             'special_requests', 'amount_paid', 'payment_method',
             'payment_reference', 'checked_in_at', 'registered_at'
@@ -112,9 +112,9 @@ class EventRegistrationUpdateSchema(Schema):
 
 
 class EventSponsorSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = EventSponsor
-        model_fields = [
+        fields = [
             'id', 'sponsor_name', 'level', 'amount', 'status',
             'benefits_description', 'logo_url', 'website_url',
             'notes', 'created_at', 'updated_at'
@@ -135,9 +135,9 @@ class EventSponsorCreateSchema(Schema):
 
 
 class EventTaskSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = EventTask
-        model_fields = [
+        fields = [
             'id', 'title', 'description', 'status', 'priority',
             'due_date', 'completed_at', 'created_at', 'updated_at'
         ]

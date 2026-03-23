@@ -11,9 +11,9 @@ router = Router()
 
 # Schemas
 class DonorSchema(ModelSchema):
-    class Config:
+    class Meta:
         model = Donor
-        model_fields = [
+        fields = [
             'id', 'first_name', 'last_name', 'email', 'phone',
             'address_line1', 'address_line2', 'city', 'state', 
             'postal_code', 'country', 'donor_type', 'organization_name',

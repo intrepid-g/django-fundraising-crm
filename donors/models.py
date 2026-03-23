@@ -127,7 +127,7 @@ class DonorNote(models.Model):
         ('alert', 'Alert'),
     ]
     
-    donor = models.ForeignKey(Donor, on_delete=models.CASCADE, related_name='notes')
+    donor = models.ForeignKey(Donor, on_delete=models.CASCADE, related_name='donor_notes')
     author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     content = models.TextField()
     note_type = models.CharField(max_length=20, choices=NOTE_TYPES, default='general')
