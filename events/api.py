@@ -183,7 +183,7 @@ def list_upcoming_events(request, limit: int = 10):
     ).order_by('start_date')[:limit]
 
 
-@router.get("/{int:event_id}", response=EventSchema)
+@router.get("/{event_id}/", response=EventSchema)
 def get_event(request, event_id: int):
     """Get a specific event by ID."""
     return Event.objects.get(id=event_id)
@@ -203,7 +203,7 @@ def create_event(request, payload: EventCreateSchema):
     return event
 
 
-@router.put("/{event_id}", response=EventSchema)
+@router.put("/{event_id}/", response=EventSchema)
 def update_event(request, event_id: int, payload: EventUpdateSchema):
     """Update an existing event."""
     event = Event.objects.get(id=event_id)
@@ -223,7 +223,7 @@ def update_event(request, event_id: int, payload: EventUpdateSchema):
     return event
 
 
-@router.delete("/{event_id}")
+@router.delete("/{event_id}/")
 def delete_event(request, event_id: int):
     """Delete an event."""
     event = Event.objects.get(id=event_id)
