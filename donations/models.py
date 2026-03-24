@@ -136,7 +136,14 @@ class Donation(models.Model):
     def __str__(self):
         return f"{self.donor} - ${self.amount} ({self.get_donation_type_display()})"
     
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.amount <= 0:
+            raise ValidationError("Donation amount must be greater than zero.")
+        super().clean()
+    
     def save(self, *args, **kwargs):
+        self.full_clean()
         super().save(*args, **kwargs)
         # Update donor stats after saving
         if self.status == self.COMPLETED:
