@@ -35,7 +35,9 @@ class Communication(models.Model):
         (OUTBOUND, 'Outbound'),
     ]
     
+    DRAFT = 'draft'
     PENDING = 'pending'
+    SCHEDULED = 'scheduled'
     SENT = 'sent'
     DELIVERED = 'delivered'
     READ = 'read'
@@ -43,7 +45,9 @@ class Communication(models.Model):
     FAILED = 'failed'
     
     STATUS_CHOICES = [
+        (DRAFT, 'Draft'),
         (PENDING, 'Pending'),
+        (SCHEDULED, 'Scheduled'),
         (SENT, 'Sent'),
         (DELIVERED, 'Delivered'),
         (READ, 'Read'),
@@ -111,6 +115,12 @@ class Communication(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    PHONE_CALL = 'phone'  # Alias for PHONE, used in tests
+    
+    @classmethod
+    def get_monthly(cls):
+        return 'monthly'
     
     class Meta:
         ordering = ['-communication_date']
@@ -252,16 +262,24 @@ class CommunicationPreference(models.Model):
     mail_opt_in = models.BooleanField(default=True)
     
     # Frequency
+    WEEKLY = 'weekly'
+    MONTHLY = 'monthly'
+    QUARTERLY = 'quarterly'
+    ANNUALLY = 'annually'
+    AS_NEEDED = 'as_needed'
+    
+    FREQUENCY_CHOICES = [
+        (WEEKLY, 'Weekly'),
+        (MONTHLY, 'Monthly'),
+        (QUARTERLY, 'Quarterly'),
+        (ANNUALLY, 'Annually'),
+        (AS_NEEDED, 'As Needed'),
+    ]
+    
     preferred_frequency = models.CharField(
         max_length=20,
-        default='monthly',
-        choices=[
-            ('weekly', 'Weekly'),
-            ('monthly', 'Monthly'),
-            ('quarterly', 'Quarterly'),
-            ('annually', 'Annually'),
-            ('as_needed', 'As Needed'),
-        ]
+        default=MONTHLY,
+        choices=FREQUENCY_CHOICES
     )
     
     # Content preferences

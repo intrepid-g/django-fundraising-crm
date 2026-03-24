@@ -356,12 +356,12 @@ class CommunicationPreferenceTests(TestCase):
         """Test topic-based preferences."""
         pref = CommunicationPreference.objects.create(
             donor=self.donor,
-            topics_of_interest=["education", "healthcare"],
-            topics_to_exclude=["politics"]
+            preferred_topics=["education", "healthcare"],
+            exclude_topics=["politics"]
         )
         
-        self.assertIn("education", pref.topics_of_interest)
-        self.assertIn("politics", pref.topics_to_exclude)
+        self.assertIn("education", pref.preferred_topics)
+        self.assertIn("politics", pref.exclude_topics)
 
 
 class CommunicationAPITests(TestCase):
