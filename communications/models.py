@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 from donors.models import Donor
 
 
@@ -68,7 +69,7 @@ class Communication(models.Model):
     to_address = models.CharField(max_length=255, blank=True)
     
     # Timing
-    communication_date = models.DateTimeField()
+    communication_date = models.DateTimeField(default=timezone.now)
     scheduled_date = models.DateTimeField(null=True, blank=True)
     sent_date = models.DateTimeField(null=True, blank=True)
     delivered_date = models.DateTimeField(null=True, blank=True)
