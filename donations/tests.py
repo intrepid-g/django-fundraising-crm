@@ -46,14 +46,16 @@ class CampaignModelTests(TestCase):
             donor=donor,
             campaign=self.campaign,
             amount=Decimal("10000.00"),
-            donation_date=date.today()
+            donation_date=date.today(),
+            status=Donation.COMPLETED
         )
         
         Donation.objects.create(
             donor=donor,
             campaign=self.campaign,
             amount=Decimal("5000.00"),
-            donation_date=date.today()
+            donation_date=date.today(),
+            status=Donation.COMPLETED
         )
         
         # Calculate progress

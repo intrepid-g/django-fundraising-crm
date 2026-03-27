@@ -7,6 +7,12 @@ from donations.models import Donation, Campaign
 class Report(models.Model):
     """Saved reports with configuration."""
     
+    # Schedule frequency constants
+    DAILY = 'daily'
+    WEEKLY = 'weekly'
+    MONTHLY = 'monthly'
+    QUARTERLY = 'quarterly'
+    
     DONOR_ANALYTICS = 'donor_analytics'
     DONATION_SUMMARY = 'donation_summary'
     CAMPAIGN_PERFORMANCE = 'campaign_performance'
