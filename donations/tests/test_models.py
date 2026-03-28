@@ -1,323 +1,518 @@
 """
-Donations app model tests
-Comprehensive unit tests for all donation-related models
+Unit tests for Donations app.
 """
 import pytest
 from decimal import Decimal
-from django.core.exceptions import ValidationError
-from donations.models import Donation, RecurringDonation
-from factories import DonorFactory, DonationFactory, RecurringDonationFactory
+from datetime import date, timedelta
+from django.test import TestCase, Client
+from django.contrib.auth.models import User
+from donors.models import Donor
+from donations.models import Donation, Campaign, RecurringDonation
 
 
-@pytest.mark.django_db
-class TestDonationModel:
-    """Test cases for the Donation model"""
+class CampaignModelTests(TestCase):
+    """Test Campaign model functionality."""
     
-    def test_create_donation_with_valid_data(self):
-        """Test creating a donation with valid data"""
-        donor = DonorFactory()
-        donation = DonationFactory(donor=donor, amount=Decimal('100.00'))
-        
-        assert donation.id is not None
-        assert donation.donor == donor
-        assert donation.amount == Decimal('100.00')
+    def setUp(self):
+        self.campaign = Campaign.objects.create(
+            name="Spring Fundraiser 2024",
+            description="Annual spring fundraising campaign",
+            goal_amount=Decimal("50000.00"),
+            start_date=date(2024, 3, 1),
+            end_date=date(2024, 5, 31),
+            is_active=True
+        )
     
-    def test_donation_str_representation(self):
-        """Test the string representation of a donation"""
-        donor = DonorFactory(first_name='John', last_name='Doe')
-        donation = DonationFactory(donor=donor, amount=Decimal('50.00'))
-        
-        str_repr = str(donation)
-        assert 'John Doe' in str_repr or 'Doe' in str_repr
-        assert '50.00' in str_repr or '50' in str_repr
+    def test_campaign_creation(self):
+        """Test basic campaign creation."""
+        self.assertEqual(self.campaign.name, "Spring Fundraiser 2024")
+        self.assertEqual(self.campaign.goal_amount, Decimal("50000.00"))
+        self.assertTrue(self.campaign.is_active)
     
-    def test_donation_amount_must_be_positive(self):
-        """Test that donation amount must be positive"""
-        donor = DonorFactory()
-        
-        with pytest.raises(Exception):
-            DonationFactory(donor=donor, amount=Decimal('-10.00'))
+    def test_campaign_str(self):
+        """Test campaign string representation."""
+        self.assertEqual(str(self.campaign), "Spring Fundraiser 2024")
     
-    def test_donation_donor_required(self):
-        """Test that donation requires a donor"""
-        with pytest.raises(Exception):
-            Donation.objects.create(amount=Decimal('100.00'))
-    
-    def test_donation_status_choices(self):
-        """Test donation status choices"""
-        donor = DonorFactory()
-        
-        for status in ['pending', 'completed', 'failed', 'refunded']:
-            donation = DonationFactory(donor=donor, status=status)
-            assert donation.status == status
-    
-    def test_donation_payment_method_choices(self):
-        """Test payment method choices"""
-        donor = DonorFactory()
-        
-        for method in ['credit_card', 'bank_transfer', 'check', 'cash', 'crypto']:
-            donation = DonationFactory(donor=donor, payment_method=method)
-            assert donation.payment_method == method
-    
-    def test_donation_currency_default(self):
-        """Test default currency is USD"""
-        donor = DonorFactory()
-        donation = DonationFactory(donor=donor)
-        
-        assert donation.currency == 'USD'
-    
-    def test_donation_receipt_tracking(self):
-        """Test donation receipt tracking fields"""
-        donor = DonorFactory()
-        donation = DonationFactory(
-            donor=donor,
-            receipt_sent=True
+    def test_campaign_progress_calculation(self):
+        """Test campaign progress calculation."""
+        # Create donations
+        donor = Donor.objects.create(
+            first_name="Test",
+            last_name="Donor",
+            email="test@example.com"
         )
         
-        assert donation.receipt_sent is True
-    
-    def test_donation_campaign_tracking(self):
-        """Test donation campaign and event tracking"""
-        donor = DonorFactory()
-        donation = DonationFactory(
+        Donation.objects.create(
             donor=donor,
-            campaign='Spring2024'
+            campaign=self.campaign,
+            amount=Decimal("10000.00"),
+            donation_date=date.today()
         )
         
-        assert donation.campaign == 'Spring2024'
-    
-    def test_donation_transaction_id(self):
-        """Test donation transaction ID field"""
-        donor = DonorFactory()
-        donation = DonationFactory(donor=donor, transaction_id='txn_12345')
+        Donation.objects.create(
+            donor=donor,
+            campaign=self.campaign,
+            amount=Decimal("5000.00"),
+            donation_date=date.today()
+        )
         
-        assert donation.transaction_id == 'txn_12345'
-    
-    def test_donation_notes_field(self):
-        """Test donation notes field"""
-        donor = DonorFactory()
-        donation = DonationFactory(donor=donor, notes='Special donation')
+        # Calculate progress
+        total = self.campaign.total_raised
+        self.assertEqual(total, Decimal("15000.00"))
         
-        assert donation.notes == 'Special donation'
+        percentage = (total / self.campaign.goal_amount) * 100
+        self.assertEqual(percentage, Decimal("30.00"))
     
-    def test_donation_timestamps(self):
-        """Test donation timestamps"""
-        donor = DonorFactory()
-        donation = DonationFactory(donor=donor)
-        
-        assert donation.donation_date is not None
-        assert donation.created_at is not None
+    def test_campaign_date_validation(self):
+        """Test campaign date validation."""
+        # End date before start date should be invalid
+        with self.assertRaises(Exception):
+            Campaign.objects.create(
+                name="Invalid Campaign",
+                goal_amount=Decimal("1000.00"),
+                start_date=date(2024, 5, 1),
+                end_date=date(2024, 3, 1)  # Before start
+            )
     
-    def test_donation_update_fields(self):
-        """Test updating donation fields"""
-        donor = DonorFactory()
-        donation = DonationFactory(donor=donor, amount=Decimal('50.00'), status='pending')
+    def test_campaign_active_filtering(self):
+        """Test filtering active campaigns."""
+        active = Campaign.objects.create(
+            name="Active Campaign",
+            goal_amount=Decimal("1000.00"),
+            start_date=date.today(),
+            is_active=True
+        )
+        inactive = Campaign.objects.create(
+            name="Inactive Campaign",
+            goal_amount=Decimal("1000.00"),
+            start_date=date.today(),
+            is_active=False
+        )
         
-        donation.amount = Decimal('75.00')
-        donation.status = 'completed'
+        active_campaigns = Campaign.objects.filter(is_active=True)
+        self.assertIn(active, active_campaigns)
+        self.assertNotIn(inactive, active_campaigns)
+
+
+class DonationModelTests(TestCase):
+    """Test Donation model functionality."""
+    
+    def setUp(self):
+        self.donor = Donor.objects.create(
+            first_name="Test",
+            last_name="Donor",
+            email="test@example.com"
+        )
+        self.campaign = Campaign.objects.create(
+            name="Test Campaign",
+            goal_amount=Decimal("10000.00"),
+            start_date=date.today()
+        )
+    
+    def test_donation_creation(self):
+        """Test basic donation creation."""
+        donation = Donation.objects.create(
+            donor=self.donor,
+            campaign=self.campaign,
+            amount=Decimal("100.00"),
+            donation_type=Donation.ONE_TIME,
+            donation_date=date.today(),
+            status=Donation.COMPLETED
+        )
+        
+        self.assertEqual(donation.amount, Decimal("100.00"))
+        self.assertEqual(donation.donor, self.donor)
+        self.assertEqual(donation.status, Donation.COMPLETED)
+    
+    def test_donation_types(self):
+        """Test different donation types."""
+        types = [
+            (Donation.ONE_TIME, "One-time"),
+            (Donation.RECURRING, "Recurring"),
+            (Donation.IN_KIND, "In-kind"),
+            (Donation.MATCHING, "Matching"),
+            (Donation.STOCK, "Stock"),
+            (Donation.LEGACY, "Legacy"),
+        ]
+        
+        for donation_type, label in types:
+            donation = Donation.objects.create(
+                donor=self.donor,
+                amount=Decimal("50.00"),
+                donation_type=donation_type,
+                donation_date=date.today()
+            )
+            self.assertEqual(donation.donation_type, donation_type)
+    
+    def test_donation_statuses(self):
+        """Test donation status workflow."""
+        donation = Donation.objects.create(
+            donor=self.donor,
+            amount=Decimal("100.00"),
+            donation_date=date.today(),
+            status=Donation.PENDING
+        )
+        
+        # Status transitions
+        donation.status = Donation.COMPLETED
+        donation.save()
+        self.assertEqual(donation.status, Donation.COMPLETED)
+        
+        donation.status = Donation.ACKNOWLEDGED
+        donation.save()
+        self.assertEqual(donation.status, Donation.ACKNOWLEDGED)
+    
+    def test_anonymous_donation(self):
+        """Test anonymous donation flag."""
+        donation = Donation.objects.create(
+            donor=self.donor,
+            amount=Decimal("500.00"),
+            donation_date=date.today(),
+            is_anonymous=True
+        )
+        
+        self.assertTrue(donation.is_anonymous)
+    
+    def test_tribute_donation(self):
+        """Test tribute/memorial donation."""
+        donation = Donation.objects.create(
+            donor=self.donor,
+            amount=Decimal("200.00"),
+            donation_date=date.today(),
+            is_tribute=True,
+            tribute_type="memory",
+            tribute_honoree="Jane Smith",
+            tribute_message="In loving memory"
+        )
+        
+        self.assertTrue(donation.is_tribute)
+        self.assertEqual(donation.tribute_honoree, "Jane Smith")
+    
+    def test_donation_acknowledgment(self):
+        """Test donation acknowledgment tracking."""
+        donation = Donation.objects.create(
+            donor=self.donor,
+            amount=Decimal("100.00"),
+            donation_date=date.today(),
+            status=Donation.COMPLETED
+        )
+        
+        # Acknowledge
+        donation.status = Donation.ACKNOWLEDGED
+        donation.acknowledgment_date = date.today()
+        donation.acknowledgment_method = "email"
         donation.save()
         
-        updated_donation = Donation.objects.get(id=donation.id)
-        assert updated_donation.amount == Decimal('75.00')
-        assert updated_donation.status == 'completed'
+        self.assertEqual(donation.status, Donation.ACKNOWLEDGED)
+        self.assertEqual(donation.acknowledgment_method, "email")
     
-    def test_donation_cascade_delete(self):
-        """Test that donations are deleted when donor is deleted"""
-        donor = DonorFactory()
-        donation = DonationFactory(donor=donor)
-        donation_id = donation.id
+    def test_donation_updates_donor_stats(self):
+        """Test that donations update donor statistics."""
+        initial_total = self.donor.total_donations
+        initial_count = self.donor.donation_count
         
-        donor.delete()
+        donation = Donation.objects.create(
+            donor=self.donor,
+            amount=Decimal("250.00"),
+            donation_date=date.today(),
+            status=Donation.COMPLETED
+        )
         
-        with pytest.raises(Donation.DoesNotExist):
-            Donation.objects.get(id=donation_id)
-    
-    def test_donation_decimal_precision(self):
-        """Test donation amount decimal precision"""
-        donor = DonorFactory()
-        donation = DonationFactory(donor=donor, amount=Decimal('123.45'))
+        # Refresh donor
+        self.donor.refresh_from_db()
         
-        assert donation.amount == Decimal('123.45')
+        self.assertEqual(
+            self.donor.total_donations,
+            initial_total + Decimal("250.00")
+        )
+        self.assertEqual(self.donor.donation_count, initial_count + 1)
+        self.assertEqual(self.donor.last_donation_date, date.today())
 
 
-@pytest.mark.django_db
-class TestRecurringDonationModel:
-    """Test cases for the RecurringDonation model"""
+class RecurringDonationTests(TestCase):
+    """Test RecurringDonation model."""
     
-    def test_create_recurring_donation_with_valid_data(self):
-        """Test creating a recurring donation with valid data"""
-        donor = DonorFactory()
-        recurring = RecurringDonationFactory(
-            donor=donor,
-            amount=Decimal('25.00'),
-            frequency='monthly'
+    def setUp(self):
+        self.donor = Donor.objects.create(
+            first_name="Recurring",
+            last_name="Donor",
+            email="recurring@example.com"
+        )
+    
+    def test_recurring_donation_creation(self):
+        """Test creating a recurring donation."""
+        recurring = RecurringDonation.objects.create(
+            donor=self.donor,
+            amount=Decimal("50.00"),
+            frequency=RecurringDonation.MONTHLY,
+            start_date=date.today(),
+            status=RecurringDonation.ACTIVE
         )
         
-        assert recurring.id is not None
-        assert recurring.donor == donor
-        assert recurring.amount == Decimal('25.00')
-        assert recurring.frequency == 'monthly'
+        self.assertEqual(recurring.amount, Decimal("50.00"))
+        self.assertEqual(recurring.frequency, RecurringDonation.MONTHLY)
+        self.assertEqual(recurring.status, RecurringDonation.ACTIVE)
     
-    def test_recurring_donation_str_representation(self):
-        """Test the string representation of a recurring donation"""
-        donor = DonorFactory(first_name='Jane', last_name='Smith')
-        recurring = RecurringDonationFactory(
-            donor=donor,
-            amount=Decimal('50.00'),
-            frequency='monthly'
+    def test_recurring_frequencies(self):
+        """Test different recurring frequencies."""
+        frequencies = [
+            RecurringDonation.WEEKLY,
+            RecurringDonation.BIWEEKLY,
+            RecurringDonation.MONTHLY,
+            RecurringDonation.QUARTERLY,
+            RecurringDonation.ANNUALLY,
+        ]
+        
+        for freq in frequencies:
+            recurring = RecurringDonation.objects.create(
+                donor=self.donor,
+                amount=Decimal("100.00"),
+                frequency=freq,
+                start_date=date.today()
+            )
+            self.assertEqual(recurring.frequency, freq)
+    
+    def test_recurring_status_changes(self):
+        """Test recurring donation status changes."""
+        recurring = RecurringDonation.objects.create(
+            donor=self.donor,
+            amount=Decimal("25.00"),
+            frequency=RecurringDonation.MONTHLY,
+            start_date=date.today(),
+            status=RecurringDonation.ACTIVE
         )
-        
-        str_repr = str(recurring)
-        assert 'Jane Smith' in str_repr or 'Smith' in str_repr
-        assert 'monthly' in str_repr.lower() or '50' in str_repr
-    
-    def test_recurring_donation_frequency_choices(self):
-        """Test recurring donation frequency choices"""
-        donor = DonorFactory()
-        
-        for frequency in ['weekly', 'monthly', 'quarterly', 'yearly']:
-            recurring = RecurringDonationFactory(donor=donor, frequency=frequency)
-            assert recurring.frequency == frequency
-    
-    def test_recurring_donation_status_choices(self):
-        """Test recurring donation status choices"""
-        donor = DonorFactory()
-        
-        for status in ['active', 'paused', 'cancelled', 'completed']:
-            recurring = RecurringDonationFactory(donor=donor, status=status)
-            assert recurring.status == status
-    
-    def test_recurring_donation_amount_must_be_positive(self):
-        """Test that recurring donation amount must be positive"""
-        donor = DonorFactory()
-        
-        with pytest.raises(Exception):
-            RecurringDonationFactory(donor=donor, amount=Decimal('-25.00'))
-    
-    def test_recurring_donation_dates(self):
-        """Test recurring donation date fields"""
-        donor = DonorFactory()
-        recurring = RecurringDonationFactory(
-            donor=donor,
-            start_date='2024-01-01',
-            end_date='2024-12-31'
-        )
-        
-        assert recurring.start_date is not None
-        assert recurring.end_date is not None
-    
-    def test_recurring_donation_tracking_fields(self):
-        """Test recurring donation tracking fields"""
-        donor = DonorFactory()
-        recurring = RecurringDonationFactory(
-            donor=donor,
-            total_donations=12,
-            total_amount=Decimal('300.00')
-        )
-        
-        assert recurring.total_donations == 12
-        assert recurring.total_amount == Decimal('300.00')
-    
-    def test_recurring_donation_payment_method(self):
-        """Test recurring donation payment method"""
-        donor = DonorFactory()
-        recurring = RecurringDonationFactory(
-            donor=donor,
-            payment_method='credit_card'
-        )
-        
-        assert recurring.payment_method == 'credit_card'
-    
-    def test_recurring_donation_cascade_delete(self):
-        """Test that recurring donations are deleted when donor is deleted"""
-        donor = DonorFactory()
-        recurring = RecurringDonationFactory(donor=donor)
-        recurring_id = recurring.id
-        
-        donor.delete()
-        
-        with pytest.raises(RecurringDonation.DoesNotExist):
-            RecurringDonation.objects.get(id=recurring_id)
-    
-    def test_recurring_donation_lifecycle_active_to_cancelled(self):
-        """Test recurring donation lifecycle from active to cancelled"""
-        donor = DonorFactory()
-        recurring = RecurringDonationFactory(donor=donor, status='active')
-        
-        assert recurring.status == 'active'
-        
-        # Cancel the recurring donation
-        recurring.status = 'cancelled'
-        recurring.save()
-        
-        updated = RecurringDonation.objects.get(id=recurring.id)
-        assert updated.status == 'cancelled'
-    
-    def test_recurring_donation_lifecycle_active_to_paused(self):
-        """Test pausing and resuming a recurring donation"""
-        donor = DonorFactory()
-        recurring = RecurringDonationFactory(donor=donor, status='active')
         
         # Pause
-        recurring.status = 'paused'
+        recurring.status = RecurringDonation.PAUSED
         recurring.save()
-        assert RecurringDonation.objects.get(id=recurring.id).status == 'paused'
+        self.assertEqual(recurring.status, RecurringDonation.PAUSED)
         
-        # Resume
-        recurring.status = 'active'
+        # Cancel
+        recurring.status = RecurringDonation.CANCELLED
+        recurring.cancelled_date = date.today()
+        recurring.cancellation_reason = "Financial constraints"
         recurring.save()
-        assert RecurringDonation.objects.get(id=recurring.id).status == 'active'
-
-
-@pytest.mark.django_db
-class TestDonationsIntegration:
-    """Integration tests for donation-related functionality"""
+        
+        self.assertEqual(recurring.status, RecurringDonation.CANCELLED)
+        self.assertEqual(recurring.cancellation_reason, "Financial constraints")
     
-    def test_donor_with_multiple_donations(self):
-        """Test a donor with multiple donations"""
-        donor = DonorFactory()
-        
-        donation1 = DonationFactory(donor=donor, amount=Decimal('50.00'))
-        donation2 = DonationFactory(donor=donor, amount=Decimal('75.00'))
-        donation3 = DonationFactory(donor=donor, amount=Decimal('100.00'))
-        
-        assert donor.donations.count() == 3
-        
-        total = sum(d.amount for d in donor.donations.all())
-        assert total == Decimal('225.00')
-    
-    def test_donor_with_recurring_and_one_time(self):
-        """Test a donor with both recurring and one-time donations"""
-        donor = DonorFactory()
-        
-        # One-time donation
-        one_time = DonationFactory(
-            donor=donor,
-            amount=Decimal('100.00')
+    def test_next_payment_date_calculation(self):
+        """Test next payment date calculation."""
+        recurring = RecurringDonation.objects.create(
+            donor=self.donor,
+            amount=Decimal("100.00"),
+            frequency=RecurringDonation.MONTHLY,
+            start_date=date(2024, 1, 15),
+            status=RecurringDonation.ACTIVE
         )
         
-        # Recurring donation setup
-        recurring = RecurringDonationFactory(
-            donor=donor,
-            amount=Decimal('25.00'),
-            frequency='monthly'
+        # Next payment should be Feb 15
+        next_date = recurring.calculate_next_payment_date()
+        self.assertEqual(next_date, date(2024, 2, 15))
+
+
+class DonationAPITests(TestCase):
+    """Test Donation API endpoints."""
+    
+    def setUp(self):
+        self.client = Client()
+        self.donor = Donor.objects.create(
+            first_name="API",
+            last_name="Donor",
+            email="api@example.com"
+        )
+        self.campaign = Campaign.objects.create(
+            name="API Campaign",
+            goal_amount=Decimal("10000.00"),
+            start_date=date.today()
+        )
+        self.donation = Donation.objects.create(
+            donor=self.donor,
+            campaign=self.campaign,
+            amount=Decimal("150.00"),
+            donation_date=date.today()
+        )
+    
+    def test_list_donations(self):
+        """Test GET /api/donations/."""
+        response = self.client.get("/api/donations/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIsInstance(data, list)
+    
+    def test_get_donation(self):
+        """Test GET /api/donations/{id}/."""
+        response = self.client.get(f"/api/donations/{self.donation.id}/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(Decimal(data["amount"]), Decimal("150.00"))
+    
+    def test_create_donation(self):
+        """Test POST /api/donations/."""
+        payload = {
+            "donor_id": self.donor.id,
+            "campaign_id": self.campaign.id,
+            "amount": "200.00",
+            "donation_type": "one_time",
+            "donation_date": str(date.today())
+        }
+        response = self.client.post(
+            "/api/donations/",
+            data=payload,
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+    
+    def test_list_campaigns(self):
+        """Test GET /api/campaigns/."""
+        response = self.client.get("/api/campaigns/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIsInstance(data, list)
+    
+    def test_get_campaign(self):
+        """Test GET /api/campaigns/{id}/."""
+        response = self.client.get(f"/api/campaigns/{self.campaign.id}/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["name"], "API Campaign")
+    
+    def test_create_campaign(self):
+        """Test POST /api/campaigns/."""
+        payload = {
+            "name": "New Campaign",
+            "goal_amount": "5000.00",
+            "start_date": str(date.today()),
+            "is_active": True
+        }
+        response = self.client.post(
+            "/api/campaigns/",
+            data=payload,
+            content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+    
+    def test_donation_summary(self):
+        """Test GET /api/donations/summary."""
+        response = self.client.get("/api/donations/summary")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("total_amount", data)
+        self.assertIn("total_count", data)
+
+
+class DonationAggregationTests(TestCase):
+    """Test donation aggregation and reporting."""
+    
+    def setUp(self):
+        self.donor1 = Donor.objects.create(
+            first_name="Donor1",
+            last_name="Test",
+            email="donor1@example.com"
+        )
+        self.donor2 = Donor.objects.create(
+            first_name="Donor2",
+            last_name="Test",
+            email="donor2@example.com"
         )
         
-        assert donor.donations.count() >= 1
-        assert donor.recurring_donations.count() == 1
+        # Create donations across different dates
+        Donation.objects.create(
+            donor=self.donor1,
+            amount=Decimal("100.00"),
+            donation_date=date(2024, 1, 15)
+        )
+        Donation.objects.create(
+            donor=self.donor1,
+            amount=Decimal("200.00"),
+            donation_date=date(2024, 2, 15)
+        )
+        Donation.objects.create(
+            donor=self.donor2,
+            amount=Decimal("150.00"),
+            donation_date=date(2024, 1, 20)
+        )
     
-    def test_campaign_donation_tracking(self):
-        """Test tracking donations by campaign"""
-        donor1 = DonorFactory()
-        donor2 = DonorFactory()
+    def test_total_donations_by_month(self):
+        """Test aggregating donations by month."""
+        from django.db.models import Sum
+        from django.db.models.functions import TruncMonth
         
-        # Donations to same campaign
-        donation1 = DonationFactory(donor=donor1, campaign='Spring2024', amount=Decimal('100.00'))
-        donation2 = DonationFactory(donor=donor2, campaign='Spring2024', amount=Decimal('150.00'))
-        donation3 = DonationFactory(donor=donor1, campaign='Fall2024', amount=Decimal('75.00'))
+        monthly_totals = Donation.objects.annotate(
+            month=TruncMonth('donation_date')
+        ).values('month').annotate(
+            total=Sum('amount')
+        ).order_by('month')
         
-        spring_donations = Donation.objects.filter(campaign='Spring2024')
-        assert spring_donations.count() == 2
+        self.assertTrue(len(monthly_totals) > 0)
+    
+    def test_average_donation_calculation(self):
+        """Test calculating average donation amount."""
+        from django.db.models import Avg
         
-        spring_total = sum(d.amount for d in spring_donations)
-        assert spring_total == Decimal('250.00')
+        avg = Donation.objects.aggregate(avg_amount=Avg('amount'))
+        self.assertIsNotNone(avg['avg_amount'])
+        # (100 + 200 + 150) / 3 = 150
+        self.assertEqual(avg['avg_amount'], Decimal("150.00"))
+    
+    def test_donor_lifetime_value(self):
+        """Test calculating donor lifetime value."""
+        donor1_total = Donation.objects.filter(
+            donor=self.donor1
+        ).aggregate(total=Sum('amount'))['total']
+        
+        self.assertEqual(donor1_total, Decimal("300.00"))
+
+
+class DonationEdgeCaseTests(TestCase):
+    """Test edge cases and error handling."""
+    
+    def setUp(self):
+        self.donor = Donor.objects.create(
+            first_name="Test",
+            last_name="Donor",
+            email="test@example.com"
+        )
+    
+    def test_zero_amount_donation(self):
+        """Test handling of zero amount donations."""
+        with self.assertRaises(Exception):
+            Donation.objects.create(
+                donor=self.donor,
+                amount=Decimal("0.00"),
+                donation_date=date.today()
+            )
+    
+    def test_negative_amount_donation(self):
+        """Test handling of negative amount donations."""
+        with self.assertRaises(Exception):
+            Donation.objects.create(
+                donor=self.donor,
+                amount=Decimal("-50.00"),
+                donation_date=date.today()
+            )
+    
+    def test_very_large_donation(self):
+        """Test handling of very large donations."""
+        donation = Donation.objects.create(
+            donor=self.donor,
+            amount=Decimal("999999999.99"),
+            donation_date=date.today()
+        )
+        self.assertEqual(donation.amount, Decimal("999999999.99"))
+    
+    def test_future_donation_date(self):
+        """Test handling of future donation dates."""
+        future_date = date.today() + timedelta(days=30)
+        donation = Donation.objects.create(
+            donor=self.donor,
+            amount=Decimal("100.00"),
+            donation_date=future_date,
+            status=Donation.PENDING
+        )
+        self.assertEqual(donation.donation_date, future_date)
+
+
+# Import required for aggregation tests
+from django.db.models import Sum, Avg
+from django.db.models.functions import TruncMonth

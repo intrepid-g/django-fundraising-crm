@@ -1,1 +1,0 @@
-# Donors tests package
