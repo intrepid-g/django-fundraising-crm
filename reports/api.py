@@ -4,6 +4,7 @@ from typing import List, Optional, Dict, Any
 from decimal import Decimal
 from django.utils import timezone
 from django.db.models import Count, Sum, Avg, Min, Max, Q, F
+from django.db.models.functions import TruncMonth
 from .models import Report, Dashboard, ReportExecution, MetricDefinition
 
 
@@ -236,7 +237,7 @@ def list_report_executions(request, report_id: int, limit: int = 10):
 
 
 # Dashboard Endpoints
-@router.get("/dashboards", response=List[DashboardSchema])
+@router.get("/dashboards/", response=List[DashboardSchema])
 def list_dashboards(request, is_default: Optional[bool] = None):
     """List all dashboards."""
     queryset = Dashboard.objects.filter(is_active=True)
@@ -245,20 +246,20 @@ def list_dashboards(request, is_default: Optional[bool] = None):
     return queryset
 
 
-@router.get("/dashboards/{dashboard_id}", response=DashboardSchema)
+@router.get("/dashboards/{dashboard_id}/", response=DashboardSchema)
 def get_dashboard(request, dashboard_id: int):
     """Get a specific dashboard."""
     return Dashboard.objects.get(id=dashboard_id)
 
 
-@router.post("/dashboards", response=DashboardSchema)
+@router.post("/dashboards/", response=DashboardSchema)
 def create_dashboard(request, payload: DashboardCreateSchema):
     """Create a new dashboard."""
     dashboard = Dashboard.objects.create(**payload.dict())
     return dashboard
 
 
-@router.put("/dashboards/{dashboard_id}", response=DashboardSchema)
+@router.put("/dashboards/{dashboard_id}/", response=DashboardSchema)
 def update_dashboard(request, dashboard_id: int, payload: DashboardCreateSchema):
     """Update a dashboard."""
     dashboard = Dashboard.objects.get(id=dashboard_id)
@@ -268,7 +269,7 @@ def update_dashboard(request, dashboard_id: int, payload: DashboardCreateSchema)
     return dashboard
 
 
-@router.delete("/dashboards/{dashboard_id}")
+@router.delete("/dashboards/{dashboard_id}/")
 def delete_dashboard(request, dashboard_id: int):
     """Delete a dashboard."""
     dashboard = Dashboard.objects.get(id=dashboard_id)
@@ -486,9 +487,9 @@ def generate_donation_summary(start_date: date, end_date: date, filters: dict) -
         total=Sum('amount')
     ).order_by('-total'))
     
-    # By month
-    by_month = list(donations.extra(
-        select={'month': "DATE_TRUNC('month', donation_date)"}
+    # By month (database-agnostic using TruncMonth)
+    by_month = list(donations.annotate(
+        month=TruncMonth('donation_date')
     ).values('month').annotate(
         count=Count('id'),
         total=Sum('amount')
