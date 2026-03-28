@@ -1,8 +1,10 @@
 from ninja import Router, Schema, ModelSchema
+from ninja.errors import HttpError
 from datetime import date
 from typing import List, Optional
 from decimal import Decimal
 from django.db import models
+from django.core.exceptions import ValidationError
 from donations.models import Campaign
 
 
@@ -38,21 +40,31 @@ def list_campaigns(request, active_only: bool = False):
 @router.get("/{campaign_id}/", response=CampaignSchema)
 def get_campaign(request, campaign_id: int):
     """Get a specific campaign."""
-    return Campaign.objects.get(id=campaign_id)
+    try:
+        return Campaign.objects.get(id=campaign_id)
+    except Campaign.DoesNotExist:
+        raise HttpError(404, "Campaign not found")
 
 
 @router.post("/", response=CampaignSchema)
 def create_campaign(request, payload: CampaignCreateSchema):
     """Create a new campaign."""
-    campaign = Campaign.objects.create(**payload.dict())
-    return campaign
+    try:
+        campaign = Campaign.objects.create(**payload.dict())
+        return campaign
+    except ValidationError as e:
+        raise HttpError(422, f"Validation error: {e.message_dict if hasattr(e, 'message_dict') else str(e)}")
 
 
 @router.get("/{campaign_id}/stats/")
 def get_campaign_stats(request, campaign_id: int):
     """Get statistics for a campaign."""
     from donations.models import Donation
-    campaign = Campaign.objects.get(id=campaign_id)
+    try:
+        campaign = Campaign.objects.get(id=campaign_id)
+    except Campaign.DoesNotExist:
+        raise HttpError(404, "Campaign not found")
+    
     donations = Donation.objects.filter(campaign=campaign, status=Donation.COMPLETED)
     
     total_raised = donations.aggregate(total=models.Sum('amount'))['total'] or 0
