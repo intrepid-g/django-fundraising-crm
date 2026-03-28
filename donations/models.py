@@ -26,6 +26,16 @@ class Campaign(models.Model):
     
     def __str__(self):
         return self.name
+    
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.end_date and self.start_date > self.end_date:
+            raise ValidationError("End date must be after start date.")
+        super().clean()
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
 
 class Donation(models.Model):
