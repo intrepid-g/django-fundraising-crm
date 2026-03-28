@@ -81,7 +81,7 @@ class DonationUpdateSchema(Schema):
 
 
 # Campaign Endpoints
-@router.get("/campaigns", response=List[CampaignSchema])
+@router.get("/campaigns/", response=List[CampaignSchema])
 def list_campaigns(request, active_only: bool = False):
     """List all campaigns."""
     queryset = Campaign.objects.all()
@@ -90,20 +90,20 @@ def list_campaigns(request, active_only: bool = False):
     return queryset
 
 
-@router.get("/campaigns/{campaign_id}", response=CampaignSchema)
+@router.get("/campaigns/{campaign_id}/", response=CampaignSchema)
 def get_campaign(request, campaign_id: int):
     """Get a specific campaign."""
     return Campaign.objects.get(id=campaign_id)
 
 
-@router.post("/campaigns", response=CampaignSchema)
+@router.post("/campaigns/", response=CampaignSchema)
 def create_campaign(request, payload: CampaignCreateSchema):
     """Create a new campaign."""
     campaign = Campaign.objects.create(**payload.dict())
     return campaign
 
 
-@router.get("/campaigns/{campaign_id}/stats")
+@router.get("/campaigns/{campaign_id}/stats/")
 def get_campaign_stats(request, campaign_id: int):
     """Get statistics for a campaign."""
     campaign = Campaign.objects.get(id=campaign_id)
@@ -132,7 +132,7 @@ def list_donations(request, limit: int = 50, offset: int = 0, status: str = None
     return queryset[offset:offset+limit]
 
 
-@router.get("/{donation_id}", response=DonationSchema)
+@router.get("/{donation_id}/", response=DonationSchema)
 def get_donation(request, donation_id: int):
     """Get a specific donation."""
     return Donation.objects.get(id=donation_id)
@@ -158,7 +158,7 @@ def create_donation(request, payload: DonationCreateSchema):
     return donation
 
 
-@router.put("/{donation_id}", response=DonationSchema)
+@router.put("/{donation_id}/", response=DonationSchema)
 def update_donation(request, donation_id: int, payload: DonationUpdateSchema):
     """Update a donation."""
     donation = Donation.objects.get(id=donation_id)
@@ -168,7 +168,7 @@ def update_donation(request, donation_id: int, payload: DonationUpdateSchema):
     return donation
 
 
-@router.post("/{donation_id}/complete")
+@router.post("/{donation_id}/complete/")
 def complete_donation(request, donation_id: int, received_date: date = None):
     """Mark a donation as completed."""
     donation = Donation.objects.get(id=donation_id)
@@ -178,7 +178,7 @@ def complete_donation(request, donation_id: int, received_date: date = None):
     return {"success": True, "donation_id": donation_id}
 
 
-@router.get("/recurring")
+@router.get("/recurring/")
 def list_recurring_donations(request):
     """List all active recurring donations."""
     donations = Donation.objects.filter(
@@ -198,7 +198,7 @@ def list_recurring_donations(request):
     ]
 
 
-@router.get("/stats/summary")
+@router.get("/stats/summary/")
 def get_donation_summary(request, start_date: date = None, end_date: date = None):
     """Get donation summary statistics."""
     queryset = Donation.objects.filter(status=Donation.COMPLETED)
@@ -224,7 +224,7 @@ def get_donation_summary(request, start_date: date = None, end_date: date = None
     
     return {
         "total_amount": float(total_amount),
-        "donation_count": count,
+        "total_count": count,
         "unique_donors": unique_donors,
         "average_donation": float(total_amount / count) if count > 0 else 0,
         "by_type": by_type,

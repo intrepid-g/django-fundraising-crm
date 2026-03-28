@@ -1,6 +1,7 @@
 from ninja import NinjaAPI
 from donors.api import router as donors_router
 from donations.api import router as donations_router
+from campaigns.api import router as campaigns_router
 from events.api import router as events_router
 from communications.api import router as communications_router
 from reports.api import router as reports_router
@@ -17,6 +18,7 @@ api = NinjaAPI(
 # Register sub-routers
 api.add_router("/donors/", donors_router)
 api.add_router("/donations/", donations_router)
+api.add_router("/campaigns/", campaigns_router)
 api.add_router("/events/", events_router)
 api.add_router("/communications/", communications_router)
 api.add_router("/reports/", reports_router)
