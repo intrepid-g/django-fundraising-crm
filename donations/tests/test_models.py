@@ -46,14 +46,16 @@ class CampaignModelTests(TestCase):
             donor=donor,
             campaign=self.campaign,
             amount=Decimal("10000.00"),
-            donation_date=date.today()
+            donation_date=date.today(),
+            status=Donation.COMPLETED
         )
-        
+
         Donation.objects.create(
             donor=donor,
             campaign=self.campaign,
             amount=Decimal("5000.00"),
-            donation_date=date.today()
+            donation_date=date.today(),
+            status=Donation.COMPLETED
         )
         
         # Calculate progress
@@ -393,8 +395,8 @@ class DonationAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
     
     def test_donation_summary(self):
-        """Test GET /api/donations/summary."""
-        response = self.client.get("/api/donations/summary")
+        """Test GET /api/donations/stats/summary/."""
+        response = self.client.get("/api/donations/stats/summary/")
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIn("total_amount", data)

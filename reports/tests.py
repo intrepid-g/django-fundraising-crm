@@ -424,8 +424,8 @@ class ReportAPITests(TestCase):
         self.assertIn(response.status_code, [200, 500])
     
     def test_list_dashboards(self):
-        """Test GET /api/reports/dashboards."""
-        response = self.client.get("/api/reports/dashboards")
+        """Test GET /api/reports/dashboards/."""
+        response = self.client.get("/api/reports/dashboards/")
         self.assertIn(response.status_code, [200, 404])  # 404 if route not found
         if response.status_code == 200:
             data = response.json()
